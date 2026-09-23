@@ -1,9 +1,10 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useState } from "react"
 import {
   Fingerprint,
   Globe,
+  MapPin,
   Monitor,
   Cpu,
   Clock,
@@ -50,38 +51,51 @@ function Card({
   )
 }
 
+function isLive(lastSeen: string) {
+  return Date.now() - new Date(lastSeen).getTime() < 30000
+}
+
+function locationText(v: Visitor & Record<string, unknown>) {
+  const parts = [v.city, v.region, v.country].filter(Boolean)
+  return parts.length ? parts.join(", ") : "Location unavailable"
+}
+
 export default function Home() {
   const [me, setMe] = useState<Visitor | null>(null)
   const [visitors, setVisitors] = useState<Visitor[]>([])
 
   async function update() {
-    const fp = await collectFingerprint()
+    try {
+      const fp = await collectFingerprint()
 
-    const visitor = {
-      ...fp,
-      anonymous_id: getID()
-    }
+      const visitor = {
+        ...fp,
+        anonymous_id: getID()
+      }
 
-    const r = await fetch("/api/visitor", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(visitor)
-    })
+      const r = await fetch("/api/visitor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(visitor)
+      })
 
-    const data = await r.json()
+      const data = await r.json()
 
-    if (data.visitor) {
-      setMe(data.visitor)
-    }
+      if (data.visitor) {
+        setMe(data.visitor)
+      }
 
-    const list = await fetch("/api/visitor", {
-      cache: "no-store"
-    })
+      const list = await fetch("/api/visitor", {
+        cache: "no-store"
+      })
 
-    const result = await list.json()
+      const result = await list.json()
 
-    if (result.visitors) {
-      setVisitors(result.visitors)
+      if (result.visitors) {
+        setVisitors(result.visitors)
+      }
+    } catch (error) {
+      console.error("Visitor update failed:", error)
     }
   }
 
@@ -92,6 +106,8 @@ export default function Home() {
 
     return () => clearInterval(timer)
   }, [])
+
+  const liveVisitors = visitors.filter(v => isLive(v.last_seen))
 
   return (
     <main className="min-h-screen bg-[#07090d] text-white">
@@ -118,7 +134,7 @@ export default function Home() {
           <div className="flex items-center gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/5 px-5 py-3">
             <Activity className="text-emerald-400" size={18} />
             <span className="text-emerald-400">
-              {visitors.length} visitors
+              {liveVisitors.length} live · {visitors.length} total
             </span>
           </div>
 
@@ -132,70 +148,76 @@ export default function Home() {
           </h2>
 
           {me && (
-            <div className="mb-6 rounded-2xl border border-green-500/20 bg-green-500/5 p-5">
-    <div className="flex items-center gap-2 text-green-400">
-      <span className="h-2.5 w-2.5 rounded-full bg-green-400 animate-pulse"></span>
-      <span className="font-semibold">Live Visitor Monitor</span>
-    </div>
-    <p className="mt-2 text-sm text-zinc-400">
-      Visitors active within the last 30 seconds
-    </p>
-  </div>
+            <>
+              <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+                <div className="flex items-center gap-2 text-emerald-400">
+                  <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400" />
+                  <span className="font-semibold">
+                    Live Visitor Monitor
+                  </span>
+                </div>
 
-  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <p className="mt-2 text-sm text-zinc-400">
+                  {liveVisitors.length} visitor{liveVisitors.length === 1 ? "" : "s"} active within the last 30 seconds.
+                </p>
+              </div>
 
-              <Card icon={Globe} name="Browser" value={me.browser} />
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
-              <Card icon={Monitor} name="OS" value={me.os} />
+                <Card icon={Globe} name="Browser" value={me.browser} />
 
-              <Card icon={Smartphone} name="Device" value={me.device} />
+                <Card icon={Monitor} name="OS" value={me.os} />
 
-              <Card icon={Globe} name="Language" value={me.language} />
+                <Card icon={Smartphone} name="Device" value={me.device} />
 
-              <Card icon={Clock} name="Timezone" value={me.timezone} />
+                <Card icon={Globe} name="Language" value={me.language} />
 
-              <Card icon={Monitor} name="Screen" value={me.screen} />
+                <Card icon={Clock} name="Timezone" value={me.timezone} />
 
-              <Card icon={Monitor} name="Viewport" value={me.viewport} />
+                <Card icon={Monitor} name="Screen" value={me.screen} />
 
-              <Card
-                icon={Cpu}
-                name="CPU threads"
-                value={String(me.cpu ?? "N/A")}
-              />
+                <Card icon={Monitor} name="Viewport" value={me.viewport} />
 
-              <Card
-                icon={MemoryStick}
-                name="Memory"
-                value={me.memory ? String(me.memory) + " GB" : "N/A"}
-              />
+                <Card
+                  icon={Cpu}
+                  name="CPU threads"
+                  value={String(me.cpu ?? "N/A")}
+                />
 
-              <Card
-                icon={Monitor}
-                name="Pixel ratio"
-                value={String(me.pixelRatio)}
-              />
+                <Card
+                  icon={MemoryStick}
+                  name="Memory"
+                  value={me.memory ? String(me.memory) + " GB" : "N/A"}
+                />
 
-              <Card
-                icon={Fingerprint}
-                name="Fingerprint"
-                value={me.fingerprintHash.slice(0, 16) + "..."}
-              />
+                <Card
+                  icon={Monitor}
+                  name="Pixel ratio"
+                  value={String(me.pixelRatio)}
+                />
 
-              <Card
-                icon={Shield}
-                name="Canvas"
-                value={me.canvasHash ? "Detected" : "Unavailable"}
-              />
+                <Card
+                  icon={Fingerprint}
+                  name="Fingerprint"
+                  value={me.fingerprintHash.slice(0, 16) + "..."}
+                />
 
-            </div>
+                <Card
+                  icon={Shield}
+                  name="Canvas"
+                  value={me.canvasHash ? "Detected" : "Unavailable"}
+                />
+
+              </div>
+            </>
           )}
 
         </section>
 
         <section>
 
-          <h2 className="mb-4 text-xl font-semibold">
+          <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold">
+            <Activity className="text-emerald-400" />
             Live visitors
           </h2>
 
@@ -207,30 +229,66 @@ export default function Home() {
               </div>
             )}
 
-            {visitors.map(v => (
-              <div
-                key={v.anonymous_id}
-                className="flex flex-col gap-3 border-b border-white/10 bg-white/[.02] p-5 md:flex-row md:items-center md:justify-between"
-              >
-                <div>
-                  <div className="font-mono text-sm text-emerald-400">
-                    {v.fingerprintHash.slice(0, 16)}...
-                  </div>
+            {visitors.map(v => {
+              const live = isLive(v.last_seen)
+              const extended = v as Visitor & Record<string, unknown>
 
-                  <div className="mt-1 text-xs text-zinc-600">
-                    anonymous visitor
+              return (
+                <div
+                  key={v.anonymous_id}
+                  className="border-b border-white/10 bg-white/[.02] p-5 last:border-b-0"
+                >
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${
+                            live
+                              ? "animate-pulse bg-emerald-400"
+                              : "bg-zinc-600"
+                          }`}
+                        />
+
+                        <span className="font-semibold">
+                          {live ? "Live" : "Offline"}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 font-mono text-xs text-emerald-400">
+                        {v.fingerprintHash.slice(0, 16)}...
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-zinc-300">
+
+                      <span>
+                        {v.browser}
+                      </span>
+
+                      <span>
+                        {v.os}
+                      </span>
+
+                      <span>
+                        {v.device}
+                      </span>
+
+                      <span className="flex items-center gap-1">
+                        <MapPin size={14} />
+                        {locationText(extended)}
+                      </span>
+
+                      <span className="text-zinc-500">
+                        {new Date(v.last_seen).toLocaleTimeString()}
+                      </span>
+
+                    </div>
+
                   </div>
                 </div>
-
-                <div className="flex flex-wrap gap-3 text-sm">
-                  <span>{v.browser}</span>
-                  <span>{v.os}</span>
-                  <span>{v.device}</span>
-                  <span>{v.language}</span>
-                  <span>{v.timezone}</span>
-                </div>
-              </div>
-            ))}
+              )
+            })}
 
           </div>
 
@@ -244,10 +302,12 @@ export default function Home() {
           </div>
 
           <p className="mt-3 text-sm leading-6 text-zinc-500">
-            This project does not intentionally collect IP addresses,
-            names, emails, passwords, GPS coordinates, cookies, or
-            browsing history. Browser fingerprints can change and are
-            not guaranteed to uniquely identify a person.
+            Location is derived from network information by the server.
+            Raw IP addresses are not displayed or stored by this dashboard.
+            IP geolocation is approximate and may represent an ISP or
+            network location rather than the visitor&apos;s exact location.
+            Browser fingerprints can change and are not guaranteed to
+            uniquely identify a person.
           </p>
 
         </section>
