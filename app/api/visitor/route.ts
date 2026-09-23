@@ -6,7 +6,10 @@ export async function POST(req: Request) {
     const body = await req.json()
 
     if (!body.anonymous_id || !body.fingerprintHash) {
-      return NextResponse.json({ error: "Invalid data" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Invalid data" },
+        { status: 400 }
+      )
     }
 
     const h = req.headers
@@ -18,6 +21,8 @@ export async function POST(req: Request) {
       city: h.get("x-vercel-ip-city"),
       ip_timezone: h.get("x-vercel-ip-timezone"),
     }
+
+    console.log("VERCEL GEO:", location)
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -40,6 +45,7 @@ export async function POST(req: Request) {
       .upsert(
         {
           anonymous_id: body.anonymous_id,
+
           browser: body.browser,
           os: body.os,
           device: body.device,
@@ -71,14 +77,20 @@ export async function POST(req: Request) {
       .single()
 
     if (error) {
+      console.error("SUPABASE ERROR:", error)
+
       return NextResponse.json(
         { error: error.message },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({ visitor: data })
-  } catch {
+    return NextResponse.json({
+      visitor: data,
+    })
+  } catch (error) {
+    console.error("VISITOR API ERROR:", error)
+
     return NextResponse.json(
       { error: "Bad request" },
       { status: 400 }
@@ -106,6 +118,8 @@ export async function GET() {
     .limit(50)
 
   if (error) {
+    console.error("SUPABASE GET ERROR:", error)
+
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
