@@ -5,6 +5,15 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
 
+    const h = req.headers
+    const location = {
+      country: h.get("x-vercel-ip-country"),
+      country_code: h.get("x-vercel-ip-country"),
+      region: h.get("x-vercel-ip-country-region"),
+      city: h.get("x-vercel-ip-city"),
+      ip_timezone: h.get("x-vercel-ip-timezone")
+    }
+
     if (!body.anonymous_id || !body.fingerprintHash) {
       return NextResponse.json({ error: "Invalid data" }, { status: 400 })
     }
@@ -72,6 +81,9 @@ export async function GET() {
 
   return NextResponse.json({
     configured: true,
-    visitors: data || []
+    visitors: (data || []).map(v => ({
+    ...v,
+    live: Date.now() - new Date(v.last_seen).getTime() < 30000
+  }))
   })
 }
