@@ -132,7 +132,17 @@ export default function Home() {
           </h2>
 
           {me && (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mb-6 rounded-2xl border border-green-500/20 bg-green-500/5 p-5">
+    <div className="flex items-center gap-2 text-green-400">
+      <span className="h-2.5 w-2.5 rounded-full bg-green-400 animate-pulse"></span>
+      <span className="font-semibold">Live Visitor Monitor</span>
+    </div>
+    <p className="mt-2 text-sm text-zinc-400">
+      Visitors active within the last 30 seconds
+    </p>
+  </div>
+
+  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
               <Card icon={Globe} name="Browser" value={me.browser} />
 
